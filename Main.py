@@ -7,6 +7,21 @@ from io import StringIO
 from pickle import dump, load
 import pickle
 
+def loadFromPickle(filename):
+    try:
+        with open(filename + ".pickle", 'rb') as f:
+            return load(f)
+    except Exception as e:
+        try:
+            if os.path.exists(filename + "_backup.pickle"):
+                with open(filename + "_backup.pickle", 'rb') as f:
+                    return load(f)
+            else:
+                print("Corrupted or missing command pickle file! Loading nothing.\nException: %s" % e)
+        except Exception as e2:
+            print("Corrupted command pickle file and backup! Loading nothing.\nException: %s\n%s" % (e, e2))
+    
+
 def setupRawCommands(bot):
     bot.remove_command('exec')
     @bot.command(pass_context=True, name = 'exec', aliases = ['debug', 'run'])
@@ -70,24 +85,11 @@ if __name__ == "__main__":
         token = open('./token').read().replace('\n','')
 
     # Load previously saved commands.
-    try:
-        with open('commands.pickle', 'rb') as f:
-            commands = load(f)
-            if type(commands) != set:
-                raise Exception
-            bot.commands = commands
-    except Exception as e:
-        try:
-            if os.path.exists("commands_backup.pickle"):
-                with open('commands_backup.pickle', 'rb') as f:
-                    commands = load(f)
-                    if type(commands) != set:
-                        raise Exception
-                    bot.commands = commands
-            else:
-                print("Corrupted or missing command pickle file! Loading nothing.\nException: %s" % e)
-        except Exception as e2:
-            print("Corrupted command pickle file and backup! Loading nothing.\nException: %s\n%s" % (e, e2))
+    res = loadFromPickle("commands")
+    if type(res) is not set:
+        print("Loaded commands are not a set. Loading nothing.")
+    else:
+        bot.commands = res
 
     setupRawCommands(bot)
 
