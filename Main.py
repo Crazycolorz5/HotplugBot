@@ -41,12 +41,14 @@ def setupRawCommands(bot):
             sys.stdout = old_stdout
         output = redirected_output.getvalue()
         output = "No output." if not output else output
+        bot.log.append(output)
         await bot.say(output)
         
     bot.remove_command('save')
     @bot.command(pass_context=True, ignore_extra = False)
     async def save(ctx):
-        commands = ctx.bot.commands
+        bot = ctx.bot
+        commands = bot.commands
         try:
             with open('commands.pickle', 'wb') as f:
                 # Pickle the 'data' dictionary using the highest protocol available.
@@ -54,24 +56,28 @@ def setupRawCommands(bot):
             with open('commands_backup.pickle', 'wb') as f:
                 dump(commands, f, pickle.HIGHEST_PROTOCOL)
         except Exception as e:
-            await self.bot.say("Error saving commands.\nException: %s" % e)
+            await bot.say("Error saving commands.\nException: %s" % e)
             return
-        await self.bot.say("Commands successfully saved.")
+        await bot.say("Commands successfully saved.")
 
-    bot.remove_command('save')
-    @bot.command(pass_context=True), ignore_extra = False)
+    bot.remove_command('saveLog')
+    @bot.command(pass_context=True, ignore_extra = False)
     async def saveLog(ctx):
         log = ctx.bot.log
         try:
-            with open('log.pickle', 'wb') as f:
-                # Pickle the 'data' dictionary using the highest protocol available.
-                dump(log, f, pickle.HIGHEST_PROTOCOL)
-            with open('log_backup.pickle', 'wb') as f:
-                dump(log, f, pickle.HIGHEST_PROTOCOL)
+            with open('log.txt', 'a+') as f:
+                for entry in log:
+                    f.write("%s\n\n" % entry)
+            ctx.bot.log = []
+            await ctx.bot.say("Log saved to file and cleared.")
         except Exception as e:
-            await self.bot.say("Error saving log.\nException: %s" % e)
-            return
-        await self.bot.say("Log successfully saved.")
+            await ctx.bot.say("Error saving log.\nException: %s" % str(e))
+            
+    bot.remove_command('clearLog')
+    @bot.command(pass_context=True, ignore_extra = False)
+    async def clearLog(ctx):
+        ctx.bot.log = []
+        await ctx.bot.say("Log cleared.")
 
 if __name__ == "__main__":
     bot = commands.Bot(command_prefix=['>', 'do '], description='Hotplugging.')
@@ -107,12 +113,7 @@ if __name__ == "__main__":
     else:
         bot.commands = res
 
-    log = loadFromPickle("log")
-    if type(log) is not []:
-        print("Log was not a list. Ignoring.")
-        bot.log = []
-    else:
-        bot.log = log
+    bot.log = []
 
     setupRawCommands(bot)
 
