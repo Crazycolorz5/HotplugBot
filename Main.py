@@ -33,6 +33,7 @@ def setupRawCommands(bot):
         bot = ctx.bot
         try:
             fix = lambda f: (lambda x: x(x))(lambda y: f(lambda args: y(y)(args)))
+            bot.log.append(arg)
             exec(arg)
         except SystemExit:
             await bot.say("I tried to quit().")
@@ -56,6 +57,21 @@ def setupRawCommands(bot):
             await self.bot.say("Error saving commands.\nException: %s" % e)
             return
         await self.bot.say("Commands successfully saved.")
+
+    bot.remove_command('save')
+    @bot.command(pass_context=True), ignore_extra = False)
+    async def saveLog(ctx):
+        log = ctx.bot.log
+        try:
+            with open('log.pickle', 'wb') as f:
+                # Pickle the 'data' dictionary using the highest protocol available.
+                dump(log, f, pickle.HIGHEST_PROTOCOL)
+            with open('log_backup.pickle', 'wb') as f:
+                dump(log, f, pickle.HIGHEST_PROTOCOL)
+        except Exception as e:
+            await self.bot.say("Error saving log.\nException: %s" % e)
+            return
+        await self.bot.say("Log successfully saved.")
 
 if __name__ == "__main__":
     bot = commands.Bot(command_prefix=['>', 'do '], description='Hotplugging.')
@@ -90,6 +106,13 @@ if __name__ == "__main__":
         print("Loaded commands are not a set. Loading nothing.")
     else:
         bot.commands = res
+
+    log = loadFromPickle("log")
+    if type(log) is not []:
+        print("Log was not a list. Ignoring.")
+        bot.log = []
+    else:
+        bot.log = log
 
     setupRawCommands(bot)
 
