@@ -7,6 +7,14 @@ from io import StringIO
 from pickle import dump, load
 import pickle
 
+rawCommands = []
+imports = dict()
+
+def addimport(module):
+    if module in imports: return imports[module]
+    imports[module] = __import__(module)
+    return imports[module]
+
 def loadFromPickle(filename):
     try:
         with open(filename + ".pickle", 'rb') as f:
@@ -23,7 +31,13 @@ def loadFromPickle(filename):
     
 
 def setupRawCommands(bot):
+    global rawCommands
+    rawCommands = []
+    
     bot.remove_command('exec')
+    rawCommands.append('exec')
+    rawCommands.append('debug')
+    rawCommands.append('run')
     @bot.command(pass_context=True, name = 'exec', aliases = ['debug', 'run'])
     @developerCheck
     async def debug(ctx, *, arg):
@@ -44,23 +58,42 @@ def setupRawCommands(bot):
         bot.log.append(output)
         await bot.say(output)
         
+    bot.remove_command('registerCommand')
+    rawCommands.append('registerCommand')
+    rawCommands.append('addCommand')
+    @bot.command(pass_context=True, name='registerCommand', aliases = ['addCommand'])
+    async def registerCommand(ctx, *, arg):
+        bot.customCommands.append(arg)
+        await bot.say("Command registered! I hope you tested it first.")
+        
+    bot.remove_command('removeCommand')
+    rawCommands.append('removeCommand')
+    @bot.command(pass_context=True, name='removeCommand')
+    async def registerCommand(ctx, comm):
+        if comm in rawCommands:
+            await bot.say("I can't let you do that.")
+        else:
+            bot.remove_command(comm)
+            await bot.say("Command removed.")
+        
     bot.remove_command('save')
+    rawCommands.append('save')
     @bot.command(pass_context=True, ignore_extra = False)
     async def save(ctx):
         bot = ctx.bot
-        commands = bot.commands
         try:
             with open('commands.pickle', 'wb') as f:
                 # Pickle the 'data' dictionary using the highest protocol available.
-                dump(commands, f, pickle.HIGHEST_PROTOCOL)
+                dump((bot.customCommands, imports), f, pickle.HIGHEST_PROTOCOL)
             with open('commands_backup.pickle', 'wb') as f:
-                dump(commands, f, pickle.HIGHEST_PROTOCOL)
+                dump((bot.customCommands, imports), f, pickle.HIGHEST_PROTOCOL)
         except Exception as e:
             await bot.say("Error saving commands.\nException: %s" % e)
             return
         await bot.say("Commands successfully saved.")
 
     bot.remove_command('saveLog')
+    rawCommands.append('saveLog')
     @bot.command(pass_context=True, ignore_extra = False)
     async def saveLog(ctx):
         log = ctx.bot.log
@@ -74,6 +107,7 @@ def setupRawCommands(bot):
             await ctx.bot.say("Error saving log.\nException: %s" % str(e))
             
     bot.remove_command('clearLog')
+    rawCommands.append('clearLog')
     @bot.command(pass_context=True, ignore_extra = False)
     async def clearLog(ctx):
         ctx.bot.log = []
@@ -108,10 +142,16 @@ if __name__ == "__main__":
 
     # Load previously saved commands.
     res = loadFromPickle("commands")
-    if type(res) is not set:
-        print("Loaded commands are not a set. Loading nothing.")
+    if type(res) is not tuple or type(res[0]) is not list:
+        print("Loaded commands are not a list. Loading nothing.")
+        bot.customCommands = []
     else:
-        bot.commands = res
+        (bot.customCommands, imports) = res
+        for comm in bot.customCommands:
+            try:
+                exec(comm)
+            except Exception as e:
+                print("Command failure: %s\nException:%s" % (str(comm), str(e)))
 
     bot.log = []
 
