@@ -81,12 +81,13 @@ def setupRawCommands(bot):
     @bot.command(pass_context=True, ignore_extra = False)
     async def save(ctx):
         bot = ctx.bot
+        toSave = (bot.customCommands, [x for x in imports])
         try:
             with open('commands.pickle', 'wb') as f:
                 # Pickle the 'data' dictionary using the highest protocol available.
-                dump((bot.customCommands, imports), f, pickle.HIGHEST_PROTOCOL)
+                dump(toSave, f, pickle.HIGHEST_PROTOCOL)
             with open('commands_backup.pickle', 'wb') as f:
-                dump((bot.customCommands, imports), f, pickle.HIGHEST_PROTOCOL)
+                dump(toSave, f, pickle.HIGHEST_PROTOCOL)
         except Exception as e:
             await bot.say("Error saving commands.\nException: %s" % e)
             return
@@ -146,12 +147,14 @@ if __name__ == "__main__":
         print("Loaded commands are not a list. Loading nothing.")
         bot.customCommands = []
     else:
-        (bot.customCommands, imports) = res
+        (bot.customCommands, import_list) = res
         for comm in bot.customCommands:
             try:
                 exec(comm)
             except Exception as e:
                 print("Command failure: %s\nException:%s" % (str(comm), str(e)))
+        for imp in import_list:
+            addimport(imp)
 
     bot.log = []
 
